@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sentinel — Document Forensics API</title>
+<title>DocuGuard — Document Forensics API</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -999,7 +999,7 @@ footer {
     <div class="logo-icon">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
     </div>
-    SENTINEL<span class="logo-dot">.</span>
+    DOCUGUARD<span class="logo-dot">.</span>
   </a>
 
   <div class="nav-center">
@@ -1237,7 +1237,7 @@ footer {
 <span class="tok-comment"># Install requests: pip install requests</span>
 <span class="tok-keyword">import</span> <span class="tok-func">requests</span>
 
-url = <span class="tok-string">"https://api.sentinel.in/v1/analyze"</span>
+url = <span class="tok-string">"https://api.docuguard.in/v1/analyze"</span>
 headers = {<span class="tok-string">"X-API-Key"</span>: <span class="tok-string">"live_sk_..."</span>}
 files = {<span class="tok-string">"file"</span>: <span class="tok-func">open</span>(<span class="tok-string">"bank_statement.jpg"</span>, <span class="tok-string">"rb"</span>)}
 
@@ -1250,7 +1250,7 @@ data = res.json()
 
       <!-- cURL Tab -->
       <div class="code-body" id="code-curl" style="display:none;">
-<span class="tok-func">curl</span> -X POST https://api.sentinel.in/v1/analyze \
+<span class="tok-func">curl</span> -X POST https://api.docuguard.in/v1/analyze \
   -H <span class="tok-string">"X-API-Key: live_sk_..."</span> \
   -F <span class="tok-string">"file=@bank_statement.jpg"</span>
       </div>
@@ -1320,7 +1320,7 @@ data = res.json()
       <div class="price-feature"><div class="price-check">✓</div> On-premise / VPC deployment</div>
       <div class="price-feature"><div class="price-check">✓</div> VAPT-tested infra + compliance</div>
       <div class="price-feature"><div class="price-check">✓</div> Dedicated solutions engineer</div>
-      <a href="mailto:founder@sentinel.in" class="price-btn">Contact Sales →</a>
+      <a href="mailto:founder@docuguard.in" class="price-btn">Contact Sales →</a>
     </div>
   </div>
 </section>
@@ -1328,7 +1328,7 @@ data = res.json()
 
 <!-- ─── FOOTER ─── -->
 <footer>
-  <div class="footer-left">© 2026 Sentinel Technologies Pvt. Ltd. · Built for Indian Fintechs.</div>
+  <div class="footer-left">© 2026 DocuGuard Technologies Pvt. Ltd. · Built for Indian Fintechs.</div>
   <div class="footer-right">
     <div class="status-dot" style="width:6px;height:6px;background:var(--green);border-radius:50%;animation:pulse 2s infinite;"></div>
     API uptime 99.98% · Last 90 days
