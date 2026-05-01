@@ -1418,7 +1418,11 @@ data = res.json()
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       const apiUrl = isLocal ? 'http://localhost:8000/v1/analyze' : '/v1/analyze';
 
-      const response = await fetch(apiUrl, { method: 'POST', body: formData });
+      const response = await fetch(apiUrl, { 
+        method: 'POST', 
+        headers: { 'X-API-Key': 'sandbox_sk_12345' },
+        body: formData 
+      });
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || 'Server error');
 
