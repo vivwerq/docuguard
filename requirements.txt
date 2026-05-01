@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+Pillow
+numpy
+python-multipart
+
+opencv-python-headless
+imagehash
+slowapi
