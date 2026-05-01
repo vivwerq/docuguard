@@ -1,1469 +1,1779 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DocuGuard — Document Forensics API</title>
-<link rel="icon" type="image/jpeg" href="logo.jpg">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
-<style>
-:root {
-  --bg: #080a0e;
-  --bg2: #0d1117;
-  --surface: #111620;
-  --surface2: #161c2a;
-  --border: rgba(255,255,255,0.06);
-  --border-strong: rgba(255,255,255,0.12);
-  --accent: #e8d4a0;
-  --accent2: #c8b88a;
-  --accent-glow: rgba(232,212,160,0.15);
-  --red: #ff4d4d;
-  --red-dim: rgba(255,77,77,0.12);
-  --amber: #f5a623;
-  --amber-dim: rgba(245,166,35,0.12);
-  --green: #3ecf8e;
-  --green-dim: rgba(62,207,142,0.12);
-  --blue: #4d9fff;
-  --text: #eef0f4;
-  --muted: #6b7280;
-  --muted2: #9ca3af;
-  --mono: 'Space Mono', monospace;
-}
-
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-html { scroll-behavior: smooth; }
-
-body {
-  font-family: 'DM Sans', sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  overflow-x: hidden;
-  cursor: default;
-}
-
-/* ─── NOISE TEXTURE OVERLAY ─── */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
-  pointer-events: none;
-  z-index: 1000;
-  opacity: 0.4;
-}
-
-/* ─── SCROLLBAR ─── */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: #2a3040; border-radius: 3px; }
-
-/* ─── NAV ─── */
-nav {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 48px;
-  height: 64px;
-  border-bottom: 1px solid var(--border);
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: rgba(8,10,14,0.85);
-  backdrop-filter: blur(20px);
-}
-
-.logo {
-  font-family: 'Syne', sans-serif;
-  font-weight: 800;
-  font-size: 18px;
-  letter-spacing: -0.02em;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  text-decoration: none;
-  color: var(--text);
-}
-
-.logo-icon {
-  width: 28px; height: 28px;
-  background: var(--accent);
-  border-radius: 6px;
-  display: grid;
-  place-items: center;
-}
-
-.logo-icon svg { color: #080a0e; }
-
-.logo-dot { color: var(--accent); }
-
-.nav-center {
-  display: flex;
-  gap: 2px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 4px;
-}
-
-.nav-pill {
-  font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--muted2);
-  padding: 6px 16px;
-  border-radius: 7px;
-  text-decoration: none;
-  transition: all 0.15s;
-}
-.nav-pill:hover { color: var(--text); background: var(--surface2); }
-.nav-pill.active { color: var(--text); background: var(--surface2); }
-
-.nav-right { display: flex; align-items: center; gap: 12px; }
-
-.nav-status {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--green);
-  padding: 5px 12px;
-  border: 1px solid rgba(62,207,142,0.2);
-  border-radius: 20px;
-  background: var(--green-dim);
-}
-
-.status-dot {
-  width: 6px; height: 6px;
-  background: var(--green);
-  border-radius: 50%;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-
-.nav-cta {
-  background: var(--accent);
-  color: #080a0e;
-  font-family: 'Syne', sans-serif;
-  font-weight: 700;
-  font-size: 13px;
-  padding: 8px 18px;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s;
-  letter-spacing: 0.01em;
-  text-decoration: none;
-}
-.nav-cta:hover { background: #f0ddb0; transform: translateY(-1px); }
-
-/* ─── HERO ─── */
-.hero {
-  min-height: calc(100vh - 64px);
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0;
-  position: relative;
-  overflow: hidden;
-}
-
-.hero-left {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 80px 64px 80px 80px;
-  border-right: 1px solid var(--border);
-}
-
-.hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--accent);
-  border: 1px solid rgba(232,212,160,0.25);
-  border-radius: 4px;
-  padding: 5px 12px;
-  margin-bottom: 32px;
-  width: fit-content;
-  background: var(--accent-glow);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-h1 {
-  font-family: 'Syne', sans-serif;
-  font-size: 52px;
-  font-weight: 800;
-  line-height: 1.05;
-  letter-spacing: -0.03em;
-  margin-bottom: 24px;
-}
-
-h1 em {
-  font-style: normal;
-  color: var(--accent);
-}
-
-.hero-sub {
-  font-size: 17px;
-  color: var(--muted2);
-  font-weight: 300;
-  line-height: 1.65;
-  max-width: 440px;
-  margin-bottom: 48px;
-}
-
-.hero-actions { display: flex; gap: 12px; align-items: center; }
-
-.btn-primary {
-  background: var(--accent);
-  color: #080a0e;
-  font-family: 'Syne', sans-serif;
-  font-weight: 700;
-  font-size: 15px;
-  padding: 14px 28px;
-  border-radius: 10px;
-  border: none;
-  cursor: pointer;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.2s;
-}
-.btn-primary:hover { background: #f0ddb0; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(232,212,160,0.2); }
-
-.btn-ghost {
-  background: transparent;
-  color: var(--muted2);
-  font-family: 'DM Sans', sans-serif;
-  font-size: 15px;
-  font-weight: 500;
-  padding: 14px 24px;
-  border-radius: 10px;
-  border: 1px solid var(--border-strong);
-  cursor: pointer;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.2s;
-}
-.btn-ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
-
-.hero-meta {
-  display: flex;
-  gap: 32px;
-  margin-top: 56px;
-  padding-top: 40px;
-  border-top: 1px solid var(--border);
-}
-
-.hero-stat-label {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 4px;
-}
-
-.hero-stat-value {
-  font-family: 'Syne', sans-serif;
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--text);
-}
-
-/* ─── HERO RIGHT: LIVE ANALYZER ─── */
-.hero-right {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 48px;
-  background: var(--bg2);
-  position: relative;
-}
-
-.analyzer-label {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--muted);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.analyzer-label::before {
-  content: '';
-  display: block;
-  width: 20px; height: 1px;
-  background: var(--muted);
-}
-
-/* Upload Zone */
-#upload-zone {
-  border: 1px dashed rgba(255,255,255,0.1);
-  border-radius: 16px;
-  padding: 56px 32px;
-  text-align: center;
-  background: rgba(255,255,255,0.015);
-  cursor: pointer;
-  transition: all 0.3s;
-  position: relative;
-  overflow: hidden;
-}
-#upload-zone::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse at center, rgba(232,212,160,0.04) 0%, transparent 70%);
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-#upload-zone:hover { border-color: rgba(232,212,160,0.3); }
-#upload-zone:hover::before { opacity: 1; }
-
-.upload-icon {
-  width: 52px; height: 52px;
-  border: 1px solid var(--border-strong);
-  border-radius: 12px;
-  display: grid;
-  place-items: center;
-  margin: 0 auto 20px;
-  background: var(--surface);
-  transition: all 0.3s;
-}
-#upload-zone:hover .upload-icon { border-color: rgba(232,212,160,0.3); background: rgba(232,212,160,0.05); }
-
-.upload-title {
-  font-family: 'Syne', sans-serif;
-  font-weight: 700;
-  font-size: 18px;
-  margin-bottom: 8px;
-}
-.upload-sub { font-size: 14px; color: var(--muted2); margin-bottom: 24px; }
-
-.upload-formats {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-}
-.format-chip {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--muted);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 3px 8px;
-  letter-spacing: 0.05em;
-}
-
-#file-input { display: none; }
-
-/* ─── RESULTS PANEL ─── */
-#results-panel { display: none; }
-
-.verdict-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 24px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  margin-bottom: 16px;
-}
-
-.verdict-label {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--muted);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin-bottom: 4px;
-}
-
-.verdict-text {
-  font-family: 'Syne', sans-serif;
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-}
-
-.verdict-score-wrap { text-align: right; }
-
-.verdict-score {
-  font-family: 'Syne', sans-serif;
-  font-size: 40px;
-  font-weight: 800;
-  line-height: 1;
-}
-
-.verdict-score-label {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.risk-bar-track {
-  height: 4px;
-  background: rgba(255,255,255,0.06);
-  border-radius: 2px;
-  margin-top: 16px;
-  overflow: hidden;
-}
-
-.risk-bar-fill {
-  height: 100%;
-  border-radius: 2px;
-  transition: width 1s cubic-bezier(0.4,0,0.2,1);
-  width: 0%;
-}
-
-/* Signals */
-.signals-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 16px;
-}
-
-.signal-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px;
-  position: relative;
-  overflow: hidden;
-}
-
-.signal-card::before {
-  content: '';
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 2px;
-}
-
-.signal-name {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: 10px;
-}
-
-.signal-val {
-  font-family: 'Syne', sans-serif;
-  font-size: 26px;
-  font-weight: 700;
-  line-height: 1;
-  margin-bottom: 10px;
-}
-
-.signal-track {
-  height: 3px;
-  background: rgba(255,255,255,0.05);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.signal-fill {
-  height: 100%;
-  border-radius: 2px;
-  transition: width 0.8s ease;
-  width: 0%;
-}
-
-/* Evidence images */
-.evidence-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 16px;
-}
-
-.evidence-img-wrap {
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  position: relative;
-}
-
-.evidence-img-wrap img {
-  width: 100%;
-  aspect-ratio: 4/3;
-  object-fit: cover;
-  display: block;
-}
-
-.evidence-caption {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  padding: 8px 12px;
-  background: rgba(0,0,0,0.4);
-  text-align: center;
-}
-
-/* Findings */
-.findings-panel {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px;
-  margin-bottom: 16px;
-}
-
-.findings-title {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 14px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.findings-title::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--border);
-}
-
-.finding-item {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  margin-bottom: 10px;
-  font-size: 13px;
-  color: var(--muted2);
-  line-height: 1.5;
-}
-.finding-arrow {
-  color: var(--accent);
-  font-family: var(--mono);
-  font-size: 12px;
-  flex-shrink: 0;
-  margin-top: 1px;
-}
-
-.hash-bar {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--muted);
-  padding: 10px 16px;
-  background: rgba(0,0,0,0.3);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.reset-btn {
-  background: transparent;
-  border: 1px solid var(--border-strong);
-  color: var(--muted2);
-  font-family: 'Syne', sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 8px 16px;
-  border-radius: 7px;
-  cursor: pointer;
-  margin-bottom: 16px;
-  transition: all 0.2s;
-}
-.reset-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.25); }
-
-/* Color utility classes */
-.c-red { color: var(--red); }
-.c-amber { color: var(--amber); }
-.c-green { color: var(--green); }
-.c-blue { color: var(--blue); }
-
-.bg-red::before { background: var(--red-dim); }
-.bg-amber::before { background: var(--amber-dim); }
-.bg-green::before { background: var(--green-dim); }
-
-.fill-red { background: var(--red); }
-.fill-amber { background: var(--amber); }
-.fill-green { background: var(--green); }
-
-/* ─── SCANLINE ANIMATION ─── */
-@keyframes scan {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(100vh); }
-}
-.scan-line {
-  position: fixed;
-  top: 0; left: 0; right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(232,212,160,0.1), transparent);
-  pointer-events: none;
-  z-index: 999;
-  animation: scan 8s linear infinite;
-}
-
-/* ─── GRID BG ─── */
-.grid-bg {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
-  background-size: 48px 48px;
-  pointer-events: none;
-}
-
-/* ─── HOW IT WORKS ─── */
-.section {
-  padding: 100px 80px;
-  border-top: 1px solid var(--border);
-}
-
-.section-eyebrow {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--accent);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  margin-bottom: 16px;
-}
-
-.section-title {
-  font-family: 'Syne', sans-serif;
-  font-size: 40px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  margin-bottom: 16px;
-  line-height: 1.1;
-}
-
-.section-sub {
-  font-size: 17px;
-  color: var(--muted2);
-  font-weight: 300;
-  max-width: 520px;
-  line-height: 1.65;
-  margin-bottom: 64px;
-}
-
-.signals-showcase {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1px;
-  background: var(--border);
-  border-radius: 16px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-}
-
-.showcase-card {
-  background: var(--bg2);
-  padding: 32px 24px;
-  transition: background 0.3s;
-}
-.showcase-card:hover { background: var(--surface); }
-
-.showcase-num {
-  font-family: 'Syne', sans-serif;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--accent);
-  letter-spacing: 0.05em;
-  margin-bottom: 20px;
-  opacity: 0.6;
-}
-
-.showcase-icon {
-  width: 44px; height: 44px;
-  border-radius: 10px;
-  border: 1px solid var(--border-strong);
-  background: var(--surface);
-  display: grid;
-  place-items: center;
-  margin-bottom: 16px;
-}
-
-.showcase-name {
-  font-family: 'Syne', sans-serif;
-  font-weight: 700;
-  font-size: 16px;
-  margin-bottom: 10px;
-}
-
-.showcase-desc {
-  font-size: 13px;
-  color: var(--muted2);
-  line-height: 1.6;
-  font-weight: 300;
-}
-
-/* ─── API DOCUMENTATION SECTION ─── */
-.docs-section {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 64px;
-  align-items: stretch;
-}
-
-.docs-endpoints {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.endpoint-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 24px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.endpoint-card:hover, .endpoint-card.active {
-  border-color: var(--accent);
-  background: rgba(232,212,160,0.02);
-}
-
-.endpoint-method {
-  display: inline-block;
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 700;
-  padding: 4px 8px;
-  border-radius: 4px;
-  background: rgba(62,207,142,0.15);
-  color: var(--green);
-  margin-bottom: 12px;
-}
-
-.endpoint-path {
-  font-family: var(--mono);
-  font-size: 14px;
-  margin-bottom: 8px;
-  color: var(--text);
-}
-
-.endpoint-desc {
-  font-size: 13px;
-  color: var(--muted2);
-}
-
-.code-block {
-  background: #000;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 14px;
-  overflow: hidden;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.code-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 20px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  background: rgba(255,255,255,0.02);
-}
-
-.code-tabs {
-  display: flex;
-  gap: 16px;
-}
-
-.code-tab {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--muted);
-  letter-spacing: 0.05em;
-  cursor: pointer;
-  padding-bottom: 4px;
-  border-bottom: 2px solid transparent;
-}
-.code-tab.active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
-}
-
-.code-dots { display: flex; gap: 6px; }
-.code-dot { width: 10px; height: 10px; border-radius: 50%; }
-
-.code-body {
-  padding: 24px;
-  font-family: var(--mono);
-  font-size: 13px;
-  line-height: 1.75;
-  overflow-y: auto;
-  flex: 1;
-}
-
-.tok-comment { color: #4b5563; }
-.tok-keyword { color: #c084fc; }
-.tok-string { color: #86efac; }
-.tok-func { color: #67e8f9; }
-.tok-prop { color: #e8d4a0; }
-.tok-num { color: #f97316; }
-
-/* ─── PRICING ─── */
-.pricing-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1px;
-  background: var(--border);
-  border-radius: 16px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-}
-
-.price-card {
-  background: var(--bg2);
-  padding: 40px 32px;
-  position: relative;
-  transition: background 0.3s;
-}
-
-.price-card.featured { background: var(--surface); }
-.price-card:hover { background: var(--surface); }
-
-.price-card.featured::before {
-  content: 'MOST POPULAR';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  text-align: center;
-  font-family: var(--mono);
-  font-size: 10px;
-  color: #080a0e;
-  background: var(--accent);
-  padding: 6px;
-  letter-spacing: 0.1em;
-}
-
-.price-tier {
-  font-family: 'Syne', sans-serif;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 16px;
-  margin-top: 20px;
-}
-
-.price-card.featured .price-tier { color: var(--accent); margin-top: 36px; }
-
-.price-val {
-  font-family: 'Syne', sans-serif;
-  font-size: 44px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  margin-bottom: 4px;
-}
-
-.price-period {
-  font-size: 14px;
-  color: var(--muted);
-  font-weight: 400;
-  margin-bottom: 32px;
-}
-
-.price-divider {
-  height: 1px;
-  background: var(--border);
-  margin-bottom: 28px;
-}
-
-.price-feature {
-  font-size: 14px;
-  color: var(--muted2);
-  margin-bottom: 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.price-check {
-  width: 16px; height: 16px;
-  border-radius: 4px;
-  background: rgba(232,212,160,0.1);
-  border: 1px solid rgba(232,212,160,0.2);
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  color: var(--accent);
-  font-size: 10px;
-}
-
-.price-btn {
-  width: 100%;
-  margin-top: 32px;
-  padding: 13px;
-  border-radius: 9px;
-  font-family: 'Syne', sans-serif;
-  font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: 1px solid var(--border-strong);
-  background: transparent;
-  color: var(--text);
-  text-decoration: none;
-  display: inline-block;
-  text-align: center;
-}
-
-.price-btn:hover { background: rgba(255,255,255,0.05); }
-
-.price-btn.featured-btn {
-  background: var(--accent);
-  color: #080a0e;
-  border-color: transparent;
-}
-.price-btn.featured-btn:hover { background: #f0ddb0; }
-
-/* ─── FOOTER ─── */
-footer {
-  border-top: 1px solid var(--border);
-  padding: 40px 80px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.footer-left {
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.footer-right {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--muted);
-}
-
-/* ─── FADE-IN ─── */
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.fade-up { animation: fadeUp 0.6s ease both; }
-.delay-1 { animation-delay: 0.1s; }
-.delay-2 { animation-delay: 0.2s; }
-.delay-3 { animation-delay: 0.3s; }
-.delay-4 { animation-delay: 0.4s; }
-
-@media (max-width: 900px) {
-  .hero { grid-template-columns: 1fr; }
-  .hero-left { padding: 60px 32px; }
-  .hero-right { padding: 32px; }
-  h1 { font-size: 36px; }
-  .section { padding: 60px 32px; }
-  .signals-showcase { grid-template-columns: 1fr 1fr; }
-  .docs-section { grid-template-columns: 1fr; }
-  .pricing-grid { grid-template-columns: 1fr; }
-  footer { flex-direction: column; gap: 16px; text-align: center; }
-}
-</style>
-</head>
-<body>
-
-<div class="scan-line"></div>
-
-<!-- ─── NAV ─── -->
-<nav>
-  <a href="#" class="logo">
-    <img src="logo.jpg" alt="DocuGuard Lion Logo" style="width: 28px; height: 28px; border-radius: 6px;">
-    DOCUGUARD<span class="logo-dot">.</span>
-  </a>
-
-  <div class="nav-center">
-    <a href="#demo" class="nav-pill active">Live Demo</a>
-    <a href="#signals" class="nav-pill">How It Works</a>
-    <a href="#integrate" class="nav-pill">API Docs</a>
-    <a href="#pricing" class="nav-pill">Pricing</a>
-  </div>
-
-  <div class="nav-right">
-    <div class="nav-status">
-      <div class="status-dot"></div>
-      All Systems Operational
-    </div>
-    <a href="#pricing" class="nav-cta">Get API Key →</a>
-  </div>
-</nav>
-
-
-<!-- ─── HERO ─── -->
-<section id="demo" class="hero">
-  <div class="grid-bg"></div>
-
-  <!-- LEFT: Copy -->
-  <div class="hero-left">
-    <div class="hero-badge fade-up">
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
-      Document Forensics · v2.4 · India
-    </div>
-
-    <h1 class="fade-up delay-1">
-      Detect forged<br>documents in <em>&lt;200ms.</em>
-    </h1>
-
-    <p class="hero-sub fade-up delay-2">
-      Multi-signal forensic analysis for Indian fintechs. Catch manipulated Aadhaar cards, fake bank statements, and WhatsApp-edited KYC in real time — before they cost you millions.
-    </p>
-
-    <div class="hero-actions fade-up delay-3">
-      <a href="#upload-zone" class="btn-primary" onclick="document.getElementById('file-input').click();">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        Analyze a Document
-      </a>
-      <a href="#integrate" class="btn-ghost">View API Docs</a>
-    </div>
-
-    <div class="hero-meta fade-up delay-4">
-      <div>
-        <div class="hero-stat-label">Avg. Latency</div>
-        <div class="hero-stat-value">&lt;180ms</div>
-      </div>
-      <div>
-        <div class="hero-stat-label">Documents / Day</div>
-        <div class="hero-stat-value">2.4M+</div>
-      </div>
-      <div>
-        <div class="hero-stat-label">Detection Rate</div>
-        <div class="hero-stat-value">99.1%</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- RIGHT: Analyzer -->
-  <div class="hero-right">
-    <div class="analyzer-label">Live Forensic Analyzer</div>
-
-    <!-- Upload Zone -->
-    <div id="upload-zone" onclick="document.getElementById('file-input').click()">
-      <div class="upload-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-      </div>
-      <div class="upload-title">Drop a document to inspect</div>
-      <div class="upload-sub">Bank statements, Aadhaar, PAN, utility bills — we handle them all</div>
-      <div class="upload-formats">
-        <span class="format-chip">JPG</span>
-        <span class="format-chip">PNG</span>
-        <span class="format-chip">PDF</span>
-        <span class="format-chip">WEBP</span>
-      </div>
-      <input type="file" id="file-input" accept="image/*" onchange="handleFileSelect(event)">
-    </div>
-
-    <!-- Results -->
-    <div id="results-panel">
-      <button class="reset-btn" onclick="resetDemo()">← Upload Another Document</button>
-
-      <!-- Verdict -->
-      <div class="verdict-bar" id="verdict-card">
-        <div>
-          <div class="verdict-label">Forensic Verdict</div>
-          <div class="verdict-text" id="verdict-text">—</div>
-          <div class="risk-bar-track">
-            <div class="risk-bar-fill" id="risk-bar-fill"></div>
-          </div>
-        </div>
-        <div class="verdict-score-wrap">
-          <div class="verdict-score" id="verdict-score">—</div>
-          <div class="verdict-score-label">Risk Score</div>
-        </div>
-      </div>
-
-      <!-- Signals -->
-      <div class="signals-row">
-        <div class="signal-card" id="sig-ela-card">
-          <div class="signal-name">Error Level Analysis</div>
-          <div class="signal-val" id="sig-ela">—</div>
-          <div class="signal-track"><div class="signal-fill" id="sig-ela-fill"></div></div>
-        </div>
-        <div class="signal-card" id="sig-meta-card">
-          <div class="signal-name">Metadata Integrity</div>
-          <div class="signal-val" id="sig-meta">—</div>
-          <div class="signal-track"><div class="signal-fill" id="sig-meta-fill"></div></div>
-        </div>
-        <div class="signal-card" id="sig-noise-card">
-          <div class="signal-name">Noise Fingerprint</div>
-          <div class="signal-val" id="sig-noise">—</div>
-          <div class="signal-track"><div class="signal-fill" id="sig-noise-fill"></div></div>
-        </div>
-        <div class="signal-card" id="sig-struct-card">
-          <div class="signal-name">Layout Consistency</div>
-          <div class="signal-val" id="sig-struct">—</div>
-          <div class="signal-track"><div class="signal-fill" id="sig-struct-fill"></div></div>
-        </div>
-      </div>
-
-      <!-- Evidence -->
-      <div class="evidence-row">
-        <div class="evidence-img-wrap">
-          <img id="original-image" src="" alt="Original Document">
-          <div class="evidence-caption">Original Upload</div>
-        </div>
-        <div class="evidence-img-wrap">
-          <img id="heatmap-image" src="" alt="Forensic Heatmap">
-          <div class="evidence-caption">Manipulation Heatmap</div>
-        </div>
-      </div>
-
-      <!-- Findings -->
-      <div class="findings-panel">
-        <div class="findings-title">Investigator Notes</div>
-        <div id="findings-list"></div>
-      </div>
-
-      <!-- Hash -->
-      <div class="hash-bar">
-        <span>Perceptual Hash</span>
-        <span id="hash-value">calculating...</span>
-      </div>
-    </div>
-  </div>
-</section>
-
-
-<!-- ─── HOW IT WORKS ─── -->
-<section id="signals" class="section">
-  <div class="section-eyebrow">Under the Hood</div>
-  <div class="section-title">Four independent signals.<br>One clear verdict.</div>
-  <p class="section-sub">We run every document through four orthogonal forensic layers simultaneously. No single signal makes the call — all four must agree.</p>
-
-  <div class="signals-showcase">
-    <div class="showcase-card">
-      <div class="showcase-num">01</div>
-      <div class="showcase-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-      </div>
-      <div class="showcase-name">Error Level Analysis</div>
-      <p class="showcase-desc">Re-compresses the image and maps regions with anomalous JPEG artifacts — edits leave a distinctive brightness signature.</p>
-    </div>
-    <div class="showcase-card">
-      <div class="showcase-num">02</div>
-      <div class="showcase-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-      </div>
-      <div class="showcase-name">Metadata Integrity</div>
-      <p class="showcase-desc">Deep EXIF/XMP inspection for timestamp inconsistencies, missing fields, and software signatures that reveal photo editing tools.</p>
-    </div>
-    <div class="showcase-card">
-      <div class="showcase-num">03</div>
-      <div class="showcase-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-      </div>
-      <div class="showcase-name">Noise Fingerprint</div>
-      <p class="showcase-desc">Analyzes sensor noise patterns at pixel level. Copy-pasted or AI-generated regions have statistically different noise profiles.</p>
-    </div>
-    <div class="showcase-card">
-      <div class="showcase-num">04</div>
-      <div class="showcase-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-      </div>
-      <div class="showcase-name">Layout Consistency</div>
-      <p class="showcase-desc">Template-matches against standard Indian ID aspect ratios and edge contours to detect bad crops, screenshots, or structural deviations.</p>
-    </div>
-  </div>
-</section>
-
-
-<!-- ─── API DOCUMENTATION ─── -->
-<section id="integrate" class="section">
-  <div class="section-eyebrow">Developer First</div>
-  <div class="section-title">API Documentation</div>
-  <p class="section-sub">Integrate in minutes. A single REST endpoint gives you the full forensic risk profile, actionable signals, and a visual heatmap proof.</p>
-  
-  <div class="docs-section">
-    <!-- Endpoints List -->
-    <div class="docs-endpoints">
-      <div class="endpoint-card active" onclick="switchDocTab('python')">
-        <div class="endpoint-method">POST</div>
-        <div class="endpoint-path">/v1/analyze</div>
-        <div class="endpoint-desc">Analyze a document image for fraud using 4 independent signals. Returns a risk score and base64 heatmap.</div>
-      </div>
-      <div class="endpoint-card" onclick="alert('Batch processing is available on the Growth plan. See Pricing for more info!')">
-        <div class="endpoint-method">POST</div>
-        <div class="endpoint-path">/v1/analyze/batch</div>
-        <div class="endpoint-desc">Upload multiple documents at once. Async processing via webhooks.</div>
-      </div>
-    </div>
-
-    <!-- Code Block -->
-    <div class="code-block">
-      <div class="code-header">
-        <div class="code-tabs">
-          <div class="code-tab active" id="tab-python" onclick="switchDocTab('python')">Python (Requests)</div>
-          <div class="code-tab" id="tab-curl" onclick="switchDocTab('curl')">cURL</div>
-          <div class="code-tab" id="tab-response" onclick="switchDocTab('response')">JSON Response</div>
-        </div>
-        <div class="code-dots">
-          <div class="code-dot" style="background:#ff5f56"></div>
-          <div class="code-dot" style="background:#ffbd2e"></div>
-          <div class="code-dot" style="background:#27c93f"></div>
-        </div>
-      </div>
-      
-      <!-- Python Tab -->
-      <div class="code-body" id="code-python">
-<span class="tok-comment"># Install requests: pip install requests</span>
-<span class="tok-keyword">import</span> <span class="tok-func">requests</span>
-
-url = <span class="tok-string">"https://api.docuguard.in/v1/analyze"</span>
-headers = {<span class="tok-string">"X-API-Key"</span>: <span class="tok-string">"live_sk_..."</span>}
-files = {<span class="tok-string">"file"</span>: <span class="tok-func">open</span>(<span class="tok-string">"bank_statement.jpg"</span>, <span class="tok-string">"rb"</span>)}
-
-res = <span class="tok-func">requests</span>.post(url, headers=headers, files=files)
-data = res.json()
-
-<span class="tok-keyword">if</span> data[<span class="tok-prop">"risk_level"</span>] == <span class="tok-string">"high"</span>:
-    <span class="tok-func">print</span>(<span class="tok-string">f"Flagged! Reason: {data['explanations'][0]}"</span>)
-      </div>
-
-      <!-- cURL Tab -->
-      <div class="code-body" id="code-curl" style="display:none;">
-<span class="tok-func">curl</span> -X POST https://api.docuguard.in/v1/analyze \
-  -H <span class="tok-string">"X-API-Key: live_sk_..."</span> \
-  -F <span class="tok-string">"file=@bank_statement.jpg"</span>
-      </div>
-
-      <!-- JSON Response Tab -->
-      <div class="code-body" id="code-response" style="display:none;">
-{
-  <span class="tok-prop">"risk_score"</span>: <span class="tok-num">0.82</span>,
-  <span class="tok-prop">"risk_level"</span>: <span class="tok-string">"high"</span>,
-  <span class="tok-prop">"confidence"</span>: <span class="tok-num">0.92</span>,
-  <span class="tok-prop">"signals"</span>: {
-    <span class="tok-prop">"ela"</span>: <span class="tok-num">0.90</span>,
-    <span class="tok-prop">"metadata"</span>: <span class="tok-num">0.80</span>,
-    <span class="tok-prop">"compression"</span>: <span class="tok-num">0.40</span>,
-    <span class="tok-prop">"structure"</span>: <span class="tok-num">0.10</span>
-  },
-  <span class="tok-prop">"explanations"</span>: [
-    <span class="tok-string">"High ELA anomaly detected"</span>,
-    <span class="tok-string">"Missing EXIF data"</span>
-  ],
-  <span class="tok-prop">"document_hash"</span>: <span class="tok-string">"c08000ff001f3e00"</span>,
-  <span class="tok-prop">"visual_proof"</span>: <span class="tok-string">"data:image/jpeg;base64,/9j/4AAQ..."</span>
-}
-      </div>
-    </div>
-  </div>
-</section>
-
-
-<!-- ─── PRICING ─── -->
-<section id="pricing" class="section">
-  <div class="section-eyebrow">Pricing</div>
-  <div class="section-title">Pay per call.<br>No surprises.</div>
-  <p class="section-sub" style="margin-bottom: 48px;">Start free. Scale as you grow. Every plan includes the full forensic engine — no signal gating.</p>
-
-  <div class="pricing-grid">
-    <div class="price-card">
-      <div class="price-tier">Sandbox</div>
-      <div class="price-val">Free</div>
-      <div class="price-period">500 calls / month</div>
-      <div class="price-divider"></div>
-      <div class="price-feature"><div class="price-check">✓</div> Full forensic engine access</div>
-      <div class="price-feature"><div class="price-check">✓</div> Manipulation heatmaps</div>
-      <div class="price-feature"><div class="price-check">✓</div> Perceptual hash output</div>
-      <div class="price-feature"><div class="price-check">✓</div> Community Slack support</div>
-      <button class="price-btn" onclick="alert('Sandbox API Keys are generated automatically upon signup! Waitlist currently open.')">Get API Key →</button>
-    </div>
-
-    <div class="price-card featured">
-      <div class="price-tier">Growth</div>
-      <div class="price-val">₹2L</div>
-      <div class="price-period">per month · 1M calls included</div>
-      <div class="price-divider"></div>
-      <div class="price-feature"><div class="price-check">✓</div> &lt;180ms SLA guarantee</div>
-      <div class="price-feature"><div class="price-check">✓</div> Batch processing endpoints</div>
-      <div class="price-feature"><div class="price-check">✓</div> Dedicated Slack Connect channel</div>
-      <div class="price-feature"><div class="price-check">✓</div> Webhook callbacks on detection</div>
-      <button class="price-btn featured-btn" onclick="alert('Redirecting to checkout for the 14-Day Growth Trial...')">Start 14-Day Trial →</button>
-    </div>
-
-    <div class="price-card">
-      <div class="price-tier">Enterprise</div>
-      <div class="price-val">Custom</div>
-      <div class="price-period">Unlimited · On-premise available</div>
-      <div class="price-divider"></div>
-      <div class="price-feature"><div class="price-check">✓</div> Custom signal weight tuning</div>
-      <div class="price-feature"><div class="price-check">✓</div> On-premise / VPC deployment</div>
-      <div class="price-feature"><div class="price-check">✓</div> VAPT-tested infra + compliance</div>
-      <div class="price-feature"><div class="price-check">✓</div> Dedicated solutions engineer</div>
-      <a href="mailto:founder@docuguard.in" class="price-btn">Contact Sales →</a>
-    </div>
-  </div>
-</section>
-
-
-<!-- ─── FOOTER ─── -->
-<footer>
-  <div class="footer-left">© 2026 DocuGuard Technologies Pvt. Ltd. · Built for Indian Fintechs.</div>
-  <div class="footer-right">
-    <div class="status-dot" style="width:6px;height:6px;background:var(--green);border-radius:50%;animation:pulse 2s infinite;"></div>
-    API uptime 99.98% · Last 90 days
-  </div>
-</footer>
-
-
-<script>
-  // Docs Tab Switcher
-  function switchDocTab(tabName) {
-    document.getElementById('tab-python').classList.remove('active');
-    document.getElementById('tab-curl').classList.remove('active');
-    document.getElementById('tab-response').classList.remove('active');
-    
-    document.getElementById('code-python').style.display = 'none';
-    document.getElementById('code-curl').style.display = 'none';
-    document.getElementById('code-response').style.display = 'none';
-    
-    document.getElementById('tab-' + tabName).classList.add('active');
-    document.getElementById('code-' + tabName).style.display = 'block';
-  }
-
-  // Active Nav Link Switcher
-  document.querySelectorAll('.nav-pill').forEach(link => {
-    link.addEventListener('click', function() {
-      document.querySelectorAll('.nav-pill').forEach(l => l.classList.remove('active'));
-      this.classList.add('active');
-    });
-  });
-
-  function getColor(score) {
-    if (score >= 0.7) return { label: 'HIGH RISK', cls: 'c-red', fill: 'fill-red' };
-    if (score >= 0.4) return { label: 'MEDIUM RISK', cls: 'c-amber', fill: 'fill-amber' };
-    return { label: 'LOW RISK', cls: 'c-green', fill: 'fill-green' };
-  }
-
-  function setSignal(id, score) {
-    const val = document.getElementById('sig-' + id);
-    const fill = document.getElementById('sig-' + id + '-fill');
-    const card = document.getElementById('sig-' + id + '-card');
-    const pct = Math.round(score * 100);
-    val.textContent = pct + '%';
-    const color = getColor(score);
-    val.className = 'signal-val ' + color.cls;
-    fill.className = 'signal-fill ' + color.fill;
-    setTimeout(() => { fill.style.width = pct + '%'; }, 100);
-  }
-
-  function resetDemo() {
-    document.getElementById('upload-zone').style.display = 'block';
-    document.getElementById('results-panel').style.display = 'none';
-    document.getElementById('file-input').value = '';
-    // Reset bars
-    ['ela', 'meta', 'noise', 'struct'].forEach(id => {
-      const f = document.getElementById('sig-' + id + '-fill');
-      if (f) f.style.width = '0%';
-    });
-    const rb = document.getElementById('risk-bar-fill');
-    if (rb) rb.style.width = '0%';
-  }
-
-  async function handleFileSelect(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    // Show original image
-    const reader = new FileReader();
-    reader.onload = e => { document.getElementById('original-image').src = e.target.result; };
-    reader.readAsDataURL(file);
-
-    document.getElementById('upload-zone').style.display = 'none';
-    document.getElementById('results-panel').style.display = 'block';
-    document.getElementById('heatmap-image').src = '';
-
-    // Reset state
-    document.getElementById('verdict-text').textContent = 'Analyzing...';
-    document.getElementById('verdict-text').className = 'verdict-text';
-    document.getElementById('verdict-score').textContent = '—';
-    document.getElementById('verdict-score').className = 'verdict-score';
-    document.getElementById('findings-list').innerHTML = '';
-    document.getElementById('hash-value').textContent = 'computing...';
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const apiUrl = isLocal ? 'http://localhost:8000/v1/analyze' : '/v1/analyze';
-
-      const response = await fetch(apiUrl, { 
-        method: 'POST', 
-        headers: { 'X-API-Key': 'sandbox_sk_12345' },
-        body: formData 
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || 'Server error');
-
-      const score = data.risk_score;
-      const pct = Math.round(score * 100);
-      const color = getColor(score);
-
-      document.getElementById('verdict-text').textContent = color.label;
-      document.getElementById('verdict-text').className = 'verdict-text ' + color.cls;
-      document.getElementById('verdict-score').textContent = pct;
-      document.getElementById('verdict-score').className = 'verdict-score ' + color.cls;
-
-      const rb = document.getElementById('risk-bar-fill');
-      rb.className = 'risk-bar-fill ' + color.fill;
-      setTimeout(() => { rb.style.width = pct + '%'; }, 100);
-
-      setSignal('ela', data.signals.ela);
-      setSignal('meta', data.signals.metadata);
-      setSignal('noise', data.signals.compression);
-      setSignal('struct', data.signals.structure);
-
-      if (data.visual_proof) {
-        document.getElementById('heatmap-image').src = data.visual_proof;
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DocuGuard — Document Forensics API</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #080a0e;
+      --bg2: #0d1117;
+      --surface: #111620;
+      --surface2: #161c2a;
+      --border: rgba(255, 255, 255, 0.06);
+      --border-strong: rgba(255, 255, 255, 0.12);
+      --accent: #e8d4a0;
+      --accent2: #c8b88a;
+      --accent-glow: rgba(232, 212, 160, 0.15);
+      --red: #ff4d4d;
+      --red-dim: rgba(255, 77, 77, 0.12);
+      --amber: #f5a623;
+      --amber-dim: rgba(245, 166, 35, 0.12);
+      --green: #3ecf8e;
+      --green-dim: rgba(62, 207, 142, 0.12);
+      --blue: #4d9fff;
+      --text: #eef0f4;
+      --muted: #6b7280;
+      --muted2: #9ca3af;
+      --mono: 'Space Mono', monospace;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+      cursor: default;
+    }
+
+    /* ─── NOISE TEXTURE OVERLAY ─── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 1000;
+      opacity: 0.4;
+    }
+
+    /* ─── SCROLLBAR ─── */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #2a3040;
+      border-radius: 3px;
+    }
+
+    /* ─── NAV ─── */
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 48px;
+      height: 64px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(8, 10, 14, 0.85);
+      backdrop-filter: blur(20px);
+    }
+
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 18px;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text);
+    }
+
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+    }
+
+    .logo-icon svg {
+      color: #080a0e;
+    }
+
+    .logo-dot {
+      color: var(--accent);
+    }
+
+    .nav-center {
+      display: flex;
+      gap: 2px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 4px;
+    }
+
+    .nav-pill {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted2);
+      padding: 6px 16px;
+      border-radius: 7px;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+
+    .nav-pill:hover {
+      color: var(--text);
+      background: var(--surface2);
+    }
+
+    .nav-pill.active {
+      color: var(--text);
+      background: var(--surface2);
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .nav-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--green);
+      padding: 5px 12px;
+      border: 1px solid rgba(62, 207, 142, 0.2);
+      border-radius: 20px;
+      background: var(--green-dim);
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
       }
 
-      document.getElementById('hash-value').textContent = data.document_hash || 'N/A';
-
-      const list = document.getElementById('findings-list');
-      (data.explanations || []).forEach(exp => {
-        const div = document.createElement('div');
-        div.className = 'finding-item';
-        div.innerHTML = `<span class="finding-arrow">→</span><span>${exp}</span>`;
-        list.appendChild(div);
-      });
-
-    } catch (err) {
-      console.error(err);
-      document.getElementById('verdict-text').textContent = 'API Error';
-      document.getElementById('findings-list').innerHTML =
-        `<div class="finding-item"><span class="finding-arrow c-red">!</span><span style="color:var(--red)">${err.message}</span></div>`;
+      50% {
+        opacity: 0.4;
+      }
     }
-  }
-</script>
+
+    .nav-cta {
+      background: var(--accent);
+      color: #080a0e;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 8px 18px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.01em;
+      text-decoration: none;
+    }
+
+    .nav-cta:hover {
+      background: #f0ddb0;
+      transform: translateY(-1px);
+    }
+
+    /* ─── HERO ─── */
+    .hero {
+      min-height: calc(100vh - 64px);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-left {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 80px 64px 80px 80px;
+      border-right: 1px solid var(--border);
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      border: 1px solid rgba(232, 212, 160, 0.25);
+      border-radius: 4px;
+      padding: 5px 12px;
+      margin-bottom: 32px;
+      width: fit-content;
+      background: var(--accent-glow);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: 52px;
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      margin-bottom: 24px;
+    }
+
+    h1 em {
+      font-style: normal;
+      color: var(--accent);
+    }
+
+    .hero-sub {
+      font-size: 17px;
+      color: var(--muted2);
+      font-weight: 300;
+      line-height: 1.65;
+      max-width: 440px;
+      margin-bottom: 48px;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #080a0e;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 15px;
+      padding: 14px 28px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .btn-primary:hover {
+      background: #f0ddb0;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(232, 212, 160, 0.2);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted2);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 500;
+      padding: 14px 24px;
+      border-radius: 10px;
+      border: 1px solid var(--border-strong);
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .btn-ghost:hover {
+      color: var(--text);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .hero-meta {
+      display: flex;
+      gap: 32px;
+      margin-top: 56px;
+      padding-top: 40px;
+      border-top: 1px solid var(--border);
+    }
+
+    .hero-stat-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+
+    .hero-stat-value {
+      font-family: 'Syne', sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    /* ─── HERO RIGHT: LIVE ANALYZER ─── */
+    .hero-right {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 48px;
+      background: var(--bg2);
+      position: relative;
+    }
+
+    .analyzer-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .analyzer-label::before {
+      content: '';
+      display: block;
+      width: 20px;
+      height: 1px;
+      background: var(--muted);
+    }
+
+    /* Upload Zone */
+    #upload-zone {
+      border: 1px dashed rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 56px 32px;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.015);
+      cursor: pointer;
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #upload-zone::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at center, rgba(232, 212, 160, 0.04) 0%, transparent 70%);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    #upload-zone:hover {
+      border-color: rgba(232, 212, 160, 0.3);
+    }
+
+    #upload-zone:hover::before {
+      opacity: 1;
+    }
+
+    .upload-icon {
+      width: 52px;
+      height: 52px;
+      border: 1px solid var(--border-strong);
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      margin: 0 auto 20px;
+      background: var(--surface);
+      transition: all 0.3s;
+    }
+
+    #upload-zone:hover .upload-icon {
+      border-color: rgba(232, 212, 160, 0.3);
+      background: rgba(232, 212, 160, 0.05);
+    }
+
+    .upload-title {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    .upload-sub {
+      font-size: 14px;
+      color: var(--muted2);
+      margin-bottom: 24px;
+    }
+
+    .upload-formats {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .format-chip {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 3px 8px;
+      letter-spacing: 0.05em;
+    }
+
+    #file-input {
+      display: none;
+    }
+
+    /* ─── RESULTS PANEL ─── */
+    #results-panel {
+      display: none;
+    }
+
+    .verdict-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      margin-bottom: 16px;
+    }
+
+    .verdict-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .verdict-text {
+      font-family: 'Syne', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .verdict-score-wrap {
+      text-align: right;
+    }
+
+    .verdict-score {
+      font-family: 'Syne', sans-serif;
+      font-size: 40px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .verdict-score-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .risk-bar-track {
+      height: 4px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 2px;
+      margin-top: 16px;
+      overflow: hidden;
+    }
+
+    .risk-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+      width: 0%;
+    }
+
+    /* Signals */
+    .signals-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .signal-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .signal-card::before {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+    }
+
+    .signal-name {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 10px;
+    }
+
+    .signal-val {
+      font-family: 'Syne', sans-serif;
+      font-size: 26px;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 10px;
+    }
+
+    .signal-track {
+      height: 3px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .signal-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.8s ease;
+      width: 0%;
+    }
+
+    /* Evidence images */
+    .evidence-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .evidence-img-wrap {
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      position: relative;
+    }
+
+    .evidence-img-wrap img {
+      width: 100%;
+      aspect-ratio: 4/3;
+      object-fit: cover;
+      display: block;
+    }
+
+    .evidence-caption {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.4);
+      text-align: center;
+    }
+
+    /* Findings */
+    .findings-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .findings-title {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .findings-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .finding-item {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 10px;
+      font-size: 13px;
+      color: var(--muted2);
+      line-height: 1.5;
+    }
+
+    .finding-arrow {
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 12px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .hash-bar {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      padding: 10px 16px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .reset-btn {
+      background: transparent;
+      border: 1px solid var(--border-strong);
+      color: var(--muted2);
+      font-family: 'Syne', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 7px;
+      cursor: pointer;
+      margin-bottom: 16px;
+      transition: all 0.2s;
+    }
+
+    .reset-btn:hover {
+      color: var(--text);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    /* Color utility classes */
+    .c-red {
+      color: var(--red);
+    }
+
+    .c-amber {
+      color: var(--amber);
+    }
+
+    .c-green {
+      color: var(--green);
+    }
+
+    .c-blue {
+      color: var(--blue);
+    }
+
+    .bg-red::before {
+      background: var(--red-dim);
+    }
+
+    .bg-amber::before {
+      background: var(--amber-dim);
+    }
+
+    .bg-green::before {
+      background: var(--green-dim);
+    }
+
+    .fill-red {
+      background: var(--red);
+    }
+
+    .fill-amber {
+      background: var(--amber);
+    }
+
+    .fill-green {
+      background: var(--green);
+    }
+
+    /* ─── SCANLINE ANIMATION ─── */
+    @keyframes scan {
+      0% {
+        transform: translateY(-100%);
+      }
+
+      100% {
+        transform: translateY(100vh);
+      }
+    }
+
+    .scan-line {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(232, 212, 160, 0.1), transparent);
+      pointer-events: none;
+      z-index: 999;
+      animation: scan 8s linear infinite;
+    }
+
+    /* ─── GRID BG ─── */
+    .grid-bg {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+    }
+
+    /* ─── HOW IT WORKS ─── */
+    .section {
+      padding: 100px 80px;
+      border-top: 1px solid var(--border);
+    }
+
+    .section-eyebrow {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 40px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 16px;
+      line-height: 1.1;
+    }
+
+    .section-sub {
+      font-size: 17px;
+      color: var(--muted2);
+      font-weight: 300;
+      max-width: 520px;
+      line-height: 1.65;
+      margin-bottom: 64px;
+    }
+
+    .signals-showcase {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .showcase-card {
+      background: var(--bg2);
+      padding: 32px 24px;
+      transition: background 0.3s;
+    }
+
+    .showcase-card:hover {
+      background: var(--surface);
+    }
+
+    .showcase-num {
+      font-family: 'Syne', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.05em;
+      margin-bottom: 20px;
+      opacity: 0.6;
+    }
+
+    .showcase-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      border: 1px solid var(--border-strong);
+      background: var(--surface);
+      display: grid;
+      place-items: center;
+      margin-bottom: 16px;
+    }
+
+    .showcase-name {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+
+    .showcase-desc {
+      font-size: 13px;
+      color: var(--muted2);
+      line-height: 1.6;
+      font-weight: 300;
+    }
+
+    /* ─── API DOCUMENTATION SECTION ─── */
+    .docs-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 64px;
+      align-items: stretch;
+    }
+
+    .docs-endpoints {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .endpoint-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .endpoint-card:hover,
+    .endpoint-card.active {
+      border-color: var(--accent);
+      background: rgba(232, 212, 160, 0.02);
+    }
+
+    .endpoint-method {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: rgba(62, 207, 142, 0.15);
+      color: var(--green);
+      margin-bottom: 12px;
+    }
+
+    .endpoint-path {
+      font-family: var(--mono);
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .endpoint-desc {
+      font-size: 13px;
+      color: var(--muted2);
+    }
+
+    .code-block {
+      background: #000;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      overflow: hidden;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .code-tabs {
+      display: flex;
+      gap: 16px;
+    }
+
+    .code-tab {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      padding-bottom: 4px;
+      border-bottom: 2px solid transparent;
+    }
+
+    .code-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .code-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .code-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .code-body {
+      padding: 24px;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.75;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .tok-comment {
+      color: #4b5563;
+    }
+
+    .tok-keyword {
+      color: #c084fc;
+    }
+
+    .tok-string {
+      color: #86efac;
+    }
+
+    .tok-func {
+      color: #67e8f9;
+    }
+
+    .tok-prop {
+      color: #e8d4a0;
+    }
+
+    .tok-num {
+      color: #f97316;
+    }
+
+    /* ─── PRICING ─── */
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .price-card {
+      background: var(--bg2);
+      padding: 40px 32px;
+      position: relative;
+      transition: background 0.3s;
+    }
+
+    .price-card.featured {
+      background: var(--surface);
+    }
+
+    .price-card:hover {
+      background: var(--surface);
+    }
+
+    .price-card.featured::before {
+      content: 'MOST POPULAR';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: #080a0e;
+      background: var(--accent);
+      padding: 6px;
+      letter-spacing: 0.1em;
+    }
+
+    .price-tier {
+      font-family: 'Syne', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 16px;
+      margin-top: 20px;
+    }
+
+    .price-card.featured .price-tier {
+      color: var(--accent);
+      margin-top: 36px;
+    }
+
+    .price-val {
+      font-family: 'Syne', sans-serif;
+      font-size: 44px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 4px;
+    }
+
+    .price-period {
+      font-size: 14px;
+      color: var(--muted);
+      font-weight: 400;
+      margin-bottom: 32px;
+    }
+
+    .price-divider {
+      height: 1px;
+      background: var(--border);
+      margin-bottom: 28px;
+    }
+
+    .price-feature {
+      font-size: 14px;
+      color: var(--muted2);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .price-check {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      background: rgba(232, 212, 160, 0.1);
+      border: 1px solid rgba(232, 212, 160, 0.2);
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      color: var(--accent);
+      font-size: 10px;
+    }
+
+    .price-btn {
+      width: 100%;
+      margin-top: 32px;
+      padding: 13px;
+      border-radius: 9px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 1px solid var(--border-strong);
+      background: transparent;
+      color: var(--text);
+      text-decoration: none;
+      display: inline-block;
+      text-align: center;
+    }
+
+    .price-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .price-btn.featured-btn {
+      background: var(--accent);
+      color: #080a0e;
+      border-color: transparent;
+    }
+
+    .price-btn.featured-btn:hover {
+      background: #f0ddb0;
+    }
+
+    /* ─── FOOTER ─── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 80px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .footer-left {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .footer-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* ─── FADE-IN ─── */
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .fade-up {
+      animation: fadeUp 0.6s ease both;
+    }
+
+    .delay-1 {
+      animation-delay: 0.1s;
+    }
+
+    .delay-2 {
+      animation-delay: 0.2s;
+    }
+
+    .delay-3 {
+      animation-delay: 0.3s;
+    }
+
+    .delay-4 {
+      animation-delay: 0.4s;
+    }
+
+    @media (max-width: 900px) {
+      .hero {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-left {
+        padding: 60px 32px;
+      }
+
+      .hero-right {
+        padding: 32px;
+      }
+
+      h1 {
+        font-size: 36px;
+      }
+
+      .section {
+        padding: 60px 32px;
+      }
+
+      .signals-showcase {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .docs-section {
+        grid-template-columns: 1fr;
+      }
+
+      .pricing-grid {
+        grid-template-columns: 1fr;
+      }
+
+      footer {
+        flex-direction: column;
+        gap: 16px;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="scan-line"></div>
+
+  <!-- ─── NAV ─── -->
+  <nav>
+    <a href="#" class="logo">
+      <img src="logo.jpg" alt="DocuGuard Lion Logo" style="width: 28px; height: 28px; border-radius: 6px;">
+      DOCUGUARD<span class="logo-dot">.</span>
+    </a>
+
+    <div class="nav-center">
+      <a href="#demo" class="nav-pill active">Live Demo</a>
+      <a href="#signals" class="nav-pill">How It Works</a>
+      <a href="#integrate" class="nav-pill">API Docs</a>
+      <a href="#pricing" class="nav-pill">Pricing</a>
+    </div>
+
+    <div class="nav-right">
+      <div class="nav-status">
+        <div class="status-dot"></div>
+        All Systems Operational
+      </div>
+      <a href="#pricing" class="nav-cta">Get API Key →</a>
+    </div>
+  </nav>
+
+
+  <!-- ─── HERO ─── -->
+  <section id="demo" class="hero">
+    <div class="grid-bg"></div>
+
+    <!-- LEFT: Copy -->
+    <div class="hero-left">
+      <div class="hero-badge fade-up">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="12" cy="12" r="10" />
+        </svg>
+        Document Forensics · v2.4 · India
+      </div>
+
+      <h1 class="fade-up delay-1">
+        Detect forged<br>documents in <em>&lt;200ms.</em>
+      </h1>
+
+      <p class="hero-sub fade-up delay-2">
+        Multi-signal forensic analysis for Indian fintechs. Catch manipulated Aadhaar cards, fake bank statements, and
+        WhatsApp-edited KYC in real time — before they cost you millions.
+      </p>
+
+      <div class="hero-actions fade-up delay-3">
+        <a href="#upload-zone" class="btn-primary" onclick="document.getElementById('file-input').click();">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="5 3 19 12 5 21 5 3" />
+          </svg>
+          Analyze a Document
+        </a>
+        <a href="#integrate" class="btn-ghost">View API Docs</a>
+      </div>
+
+      <div class="hero-meta fade-up delay-4">
+        <div>
+          <div class="hero-stat-label">Avg. Latency</div>
+          <div class="hero-stat-value">&lt;180ms</div>
+        </div>
+        <div>
+          <div class="hero-stat-label">Documents / Day</div>
+          <div class="hero-stat-value">2.4M+</div>
+        </div>
+        <div>
+          <div class="hero-stat-label">Detection Rate</div>
+          <div class="hero-stat-value">99.1%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Analyzer -->
+    <div class="hero-right">
+      <div class="analyzer-label">Live Forensic Analyzer</div>
+
+      <!-- Upload Zone -->
+      <div id="upload-zone" onclick="document.getElementById('file-input').click()">
+        <div class="upload-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+        </div>
+        <div class="upload-title">Drop a document to inspect</div>
+        <div class="upload-sub">Bank statements, Aadhaar, PAN, utility bills — we handle them all</div>
+        <div class="upload-formats">
+          <span class="format-chip">JPG</span>
+          <span class="format-chip">PNG</span>
+          <span class="format-chip">PDF</span>
+          <span class="format-chip">WEBP</span>
+        </div>
+        <input type="file" id="file-input" accept="image/*" onchange="handleFileSelect(event)">
+      </div>
+
+      <!-- Results -->
+      <div id="results-panel">
+        <button class="reset-btn" onclick="resetDemo()">← Upload Another Document</button>
+
+        <!-- Verdict -->
+        <div class="verdict-bar" id="verdict-card">
+          <div>
+            <div class="verdict-label">Forensic Verdict</div>
+            <div class="verdict-text" id="verdict-text">—</div>
+            <div class="risk-bar-track">
+              <div class="risk-bar-fill" id="risk-bar-fill"></div>
+            </div>
+          </div>
+          <div class="verdict-score-wrap">
+            <div class="verdict-score" id="verdict-score">—</div>
+            <div class="verdict-score-label">Risk Score</div>
+          </div>
+        </div>
+
+        <!-- Signals -->
+        <div class="signals-row">
+          <div class="signal-card" id="sig-ela-card">
+            <div class="signal-name">Error Level Analysis</div>
+            <div class="signal-val" id="sig-ela">—</div>
+            <div class="signal-track">
+              <div class="signal-fill" id="sig-ela-fill"></div>
+            </div>
+          </div>
+          <div class="signal-card" id="sig-meta-card">
+            <div class="signal-name">Metadata Integrity</div>
+            <div class="signal-val" id="sig-meta">—</div>
+            <div class="signal-track">
+              <div class="signal-fill" id="sig-meta-fill"></div>
+            </div>
+          </div>
+          <div class="signal-card" id="sig-noise-card">
+            <div class="signal-name">Noise Fingerprint</div>
+            <div class="signal-val" id="sig-noise">—</div>
+            <div class="signal-track">
+              <div class="signal-fill" id="sig-noise-fill"></div>
+            </div>
+          </div>
+          <div class="signal-card" id="sig-struct-card">
+            <div class="signal-name">Layout Consistency</div>
+            <div class="signal-val" id="sig-struct">—</div>
+            <div class="signal-track">
+              <div class="signal-fill" id="sig-struct-fill"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Evidence -->
+        <div class="evidence-row">
+          <div class="evidence-img-wrap">
+            <img id="original-image" src="" alt="Original Document">
+            <div class="evidence-caption">Original Upload</div>
+          </div>
+          <div class="evidence-img-wrap">
+            <img id="heatmap-image" src="" alt="Forensic Heatmap">
+            <div class="evidence-caption">Manipulation Heatmap</div>
+          </div>
+        </div>
+
+        <!-- Findings -->
+        <div class="findings-panel">
+          <div class="findings-title">Investigator Notes</div>
+          <div id="findings-list"></div>
+        </div>
+
+        <!-- Hash -->
+        <div class="hash-bar">
+          <span>Perceptual Hash</span>
+          <span id="hash-value">calculating...</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ─── HOW IT WORKS ─── -->
+  <section id="signals" class="section">
+    <div class="section-eyebrow">Under the Hood</div>
+    <div class="section-title">Four independent signals.<br>One clear verdict.</div>
+    <p class="section-sub">We run every document through four orthogonal forensic layers simultaneously. No single
+      signal makes the call — all four must agree.</p>
+
+    <div class="signals-showcase">
+      <div class="showcase-card">
+        <div class="showcase-num">01</div>
+        <div class="showcase-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <polyline points="21 15 16 10 5 21" />
+          </svg>
+        </div>
+        <div class="showcase-name">Error Level Analysis</div>
+        <p class="showcase-desc">Re-compresses the image and maps regions with anomalous JPEG artifacts — edits leave a
+          distinctive brightness signature.</p>
+      </div>
+      <div class="showcase-card">
+        <div class="showcase-num">02</div>
+        <div class="showcase-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+        </div>
+        <div class="showcase-name">Metadata Integrity</div>
+        <p class="showcase-desc">Deep EXIF/XMP inspection for timestamp inconsistencies, missing fields, and software
+          signatures that reveal photo editing tools.</p>
+      </div>
+      <div class="showcase-card">
+        <div class="showcase-num">03</div>
+        <div class="showcase-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+          </svg>
+        </div>
+        <div class="showcase-name">Noise Fingerprint</div>
+        <p class="showcase-desc">Analyzes sensor noise patterns at pixel level. Copy-pasted or AI-generated regions have
+          statistically different noise profiles.</p>
+      </div>
+      <div class="showcase-card">
+        <div class="showcase-num">04</div>
+        <div class="showcase-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7" />
+            <rect x="14" y="3" width="7" height="7" />
+            <rect x="14" y="14" width="7" height="7" />
+            <rect x="3" y="14" width="7" height="7" />
+          </svg>
+        </div>
+        <div class="showcase-name">Layout Consistency</div>
+        <p class="showcase-desc">Template-matches against standard Indian ID aspect ratios and edge contours to detect
+          bad crops, screenshots, or structural deviations.</p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ─── API DOCUMENTATION ─── -->
+  <section id="integrate" class="section">
+    <div class="section-eyebrow">Developer First</div>
+    <div class="section-title">API Documentation</div>
+    <p class="section-sub">Integrate in minutes. A single REST endpoint gives you the full forensic risk profile,
+      actionable signals, and a visual heatmap proof.</p>
+
+    <div class="docs-section">
+      <!-- Endpoints List -->
+      <div class="docs-endpoints">
+        <div class="endpoint-card active" onclick="switchDocTab('python')">
+          <div class="endpoint-method">POST</div>
+          <div class="endpoint-path">/v1/analyze</div>
+          <div class="endpoint-desc">Analyze a document image for fraud using 4 independent signals. Returns a risk
+            score and base64 heatmap.</div>
+        </div>
+        <div class="endpoint-card"
+          onclick="alert('Batch processing is available on the Growth plan. See Pricing for more info!')">
+          <div class="endpoint-method">POST</div>
+          <div class="endpoint-path">/v1/analyze/batch</div>
+          <div class="endpoint-desc">Upload multiple documents at once. Async processing via webhooks.</div>
+        </div>
+      </div>
+
+      <!-- Code Block -->
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-tabs">
+            <div class="code-tab active" id="tab-python" onclick="switchDocTab('python')">Python (Requests)</div>
+            <div class="code-tab" id="tab-curl" onclick="switchDocTab('curl')">cURL</div>
+            <div class="code-tab" id="tab-response" onclick="switchDocTab('response')">JSON Response</div>
+          </div>
+          <div class="code-dots">
+            <div class="code-dot" style="background:#ff5f56"></div>
+            <div class="code-dot" style="background:#ffbd2e"></div>
+            <div class="code-dot" style="background:#27c93f"></div>
+          </div>
+        </div>
+
+        <!-- Python Tab -->
+        <div class="code-body" id="code-python">
+          <span class="tok-comment"># Install requests: pip install requests</span>
+          <span class="tok-keyword">import</span> <span class="tok-func">requests</span>
+
+          url = <span class="tok-string">"https://api.docuguard.in/v1/analyze"</span>
+          headers = {<span class="tok-string">"X-API-Key"</span>: <span class="tok-string">"live_sk_..."</span>}
+          files = {<span class="tok-string">"file"</span>: <span class="tok-func">open</span>(<span
+            class="tok-string">"bank_statement.jpg"</span>, <span class="tok-string">"rb"</span>)}
+
+          res = <span class="tok-func">requests</span>.post(url, headers=headers, files=files)
+          data = res.json()
+
+          <span class="tok-keyword">if</span> data[<span class="tok-prop">"risk_level"</span>] == <span
+            class="tok-string">"high"</span>:
+          <span class="tok-func">print</span>(<span class="tok-string">f"Flagged! Reason:
+            {data['explanations'][0]}"</span>)
+        </div>
+
+        <!-- cURL Tab -->
+        <div class="code-body" id="code-curl" style="display:none;">
+          <span class="tok-func">curl</span> -X POST https://api.docuguard.in/v1/analyze \
+          -H <span class="tok-string">"X-API-Key: live_sk_..."</span> \
+          -F <span class="tok-string">"file=@bank_statement.jpg"</span>
+        </div>
+
+        <!-- JSON Response Tab -->
+        <div class="code-body" id="code-response" style="display:none;">
+          {
+          <span class="tok-prop">"risk_score"</span>: <span class="tok-num">0.82</span>,
+          <span class="tok-prop">"risk_level"</span>: <span class="tok-string">"high"</span>,
+          <span class="tok-prop">"confidence"</span>: <span class="tok-num">0.92</span>,
+          <span class="tok-prop">"signals"</span>: {
+          <span class="tok-prop">"ela"</span>: <span class="tok-num">0.90</span>,
+          <span class="tok-prop">"metadata"</span>: <span class="tok-num">0.80</span>,
+          <span class="tok-prop">"compression"</span>: <span class="tok-num">0.40</span>,
+          <span class="tok-prop">"structure"</span>: <span class="tok-num">0.10</span>
+          },
+          <span class="tok-prop">"explanations"</span>: [
+          <span class="tok-string">"High ELA anomaly detected"</span>,
+          <span class="tok-string">"Missing EXIF data"</span>
+          ],
+          <span class="tok-prop">"document_hash"</span>: <span class="tok-string">"c08000ff001f3e00"</span>,
+          <span class="tok-prop">"visual_proof"</span>: <span
+            class="tok-string">"data:image/jpeg;base64,/9j/4AAQ..."</span>
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ─── PRICING ─── -->
+  <section id="pricing" class="section">
+    <div class="section-eyebrow">Pricing</div>
+    <div class="section-title">Pay per call.<br>No surprises.</div>
+    <p class="section-sub" style="margin-bottom: 48px;">Start free. Scale as you grow. Every plan includes the full
+      forensic engine — no signal gating.</p>
+
+    <div class="pricing-grid">
+      <div class="price-card">
+        <div class="price-tier">Sandbox</div>
+        <div class="price-val">Free</div>
+        <div class="price-period">500 calls / month</div>
+        <div class="price-divider"></div>
+        <div class="price-feature">
+          <div class="price-check">✓</div> Full forensic engine access
+        </div>
+        <div class="price-feature">
+          <div class="price-check">✓</div> Manipulation heatmaps
+        </div>
+        <div class="price-feature">
+          <div class="price-check">✓</div> Perceptual hash output
+        </div>
+        <div class="price-feature">
+          <div class="price-check">✓</div> Community Slack support
+        </div>
+        <button class="price-btn"
+          onclick="alert('Sandbox API Keys are generated automatically upon signup! Waitlist currently open.')">Get API
+          Key →</button>
+      </div>
+
+      <div class="price-card featured">
+        <div class="price-tier">Growth</div>
+        <div class="price-val">₹2L</div>
+        <div class="price-period">per month · 1M calls included</div>
+        <div class="price-divider"></div>
+        <div class="price-feature">
+          <div class="price-check">✓</div> &lt;180ms SLA guarantee
+        </div>
+        <div class="price-feature">
+          <div class="price-check">✓</div> Batch processing endpoints
+        </div>
+        <div class="price-feature">
+          <div class="price-check">✓</div> Dedicated Slack Connect channel
+        </div>
+        <div class="price-feature">
+          <div class="price-check">✓</div> Webhook callbacks on detection
+        </div>
+        <button class="price-btn featured-btn"
+          onclick="alert('Redirecting to checkout for the 14-Day Growth Trial...')">Start 14-Day Trial →</button>
+      </div>
+
+      <div class="price-card">
+        <div class="price-tier">Enterprise</div>
+        <div class="price-val">Custom</div>
+        <div class="price-period">Unlimited · On-premise available</div>
+        <div class="price-divider"></div>
+        <div class="price-feature">
+          <div class="price-check">✓</div> Custom signal weight tuning
+        </div>
+        <div class="price-feature">
+          <div class="price-check">✓</div> On-premise / VPC deployment
+        </div>
+        <div class="price-feature">
+          <div class="price-check">✓</div> VAPT-tested infra + compliance
+        </div>
+        <div class="price-feature">
+          <div class="price-check">✓</div> Dedicated solutions engineer
+        </div>
+        <a href="mailto:founder@docuguard.in" class="price-btn">Contact Sales →</a>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ─── FOOTER ─── -->
+  <footer>
+    <div class="footer-left">© 2026 DocuGuard Technologies Pvt. Ltd. · Built for Indian Fintechs.</div>
+    <div class="footer-right">
+      <div class="status-dot"
+        style="width:6px;height:6px;background:var(--green);border-radius:50%;animation:pulse 2s infinite;"></div>
+      API uptime 99.98% · Last 90 days
+    </div>
+  </footer>
+
+
+  <script>
+    // Docs Tab Switcher
+    function switchDocTab(tabName) {
+      document.getElementById('tab-python').classList.remove('active');
+      document.getElementById('tab-curl').classList.remove('active');
+      document.getElementById('tab-response').classList.remove('active');
+
+      document.getElementById('code-python').style.display = 'none';
+      document.getElementById('code-curl').style.display = 'none';
+      document.getElementById('code-response').style.display = 'none';
+
+      document.getElementById('tab-' + tabName).classList.add('active');
+      document.getElementById('code-' + tabName).style.display = 'block';
+    }
+
+    // Active Nav Link Switcher
+    document.querySelectorAll('.nav-pill').forEach(link => {
+      link.addEventListener('click', function () {
+        document.querySelectorAll('.nav-pill').forEach(l => l.classList.remove('active'));
+        this.classList.add('active');
+      });
+    });
+
+    function getColor(score) {
+      if (score >= 0.7) return { label: 'HIGH RISK', cls: 'c-red', fill: 'fill-red' };
+      if (score >= 0.4) return { label: 'MEDIUM RISK', cls: 'c-amber', fill: 'fill-amber' };
+      return { label: 'LOW RISK', cls: 'c-green', fill: 'fill-green' };
+    }
+
+    function setSignal(id, score) {
+      const val = document.getElementById('sig-' + id);
+      const fill = document.getElementById('sig-' + id + '-fill');
+      const card = document.getElementById('sig-' + id + '-card');
+      const pct = Math.round(score * 100);
+      val.textContent = pct + '%';
+      const color = getColor(score);
+      val.className = 'signal-val ' + color.cls;
+      fill.className = 'signal-fill ' + color.fill;
+      setTimeout(() => { fill.style.width = pct + '%'; }, 100);
+    }
+
+    function resetDemo() {
+      document.getElementById('upload-zone').style.display = 'block';
+      document.getElementById('results-panel').style.display = 'none';
+      document.getElementById('file-input').value = '';
+      // Reset bars
+      ['ela', 'meta', 'noise', 'struct'].forEach(id => {
+        const f = document.getElementById('sig-' + id + '-fill');
+        if (f) f.style.width = '0%';
+      });
+      const rb = document.getElementById('risk-bar-fill');
+      if (rb) rb.style.width = '0%';
+    }
+
+    async function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      // Show original image
+      const reader = new FileReader();
+      reader.onload = e => { document.getElementById('original-image').src = e.target.result; };
+      reader.readAsDataURL(file);
+
+      document.getElementById('upload-zone').style.display = 'none';
+      document.getElementById('results-panel').style.display = 'block';
+      document.getElementById('heatmap-image').src = '';
+
+      // Reset state
+      document.getElementById('verdict-text').textContent = 'Analyzing...';
+      document.getElementById('verdict-text').className = 'verdict-text';
+      document.getElementById('verdict-score').textContent = '—';
+      document.getElementById('verdict-score').className = 'verdict-score';
+      document.getElementById('findings-list').innerHTML = '';
+      document.getElementById('hash-value').textContent = 'computing...';
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const apiUrl = isLocal ? 'http://localhost:8000/v1/analyze' : '/v1/analyze';
+
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'X-API-Key': 'sandbox_sk_12345' },
+          body: formData
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || 'Server error');
+
+        const score = data.risk_score;
+        const pct = Math.round(score * 100);
+        const color = getColor(score);
+
+        document.getElementById('verdict-text').textContent = color.label;
+        document.getElementById('verdict-text').className = 'verdict-text ' + color.cls;
+        document.getElementById('verdict-score').textContent = pct;
+        document.getElementById('verdict-score').className = 'verdict-score ' + color.cls;
+
+        const rb = document.getElementById('risk-bar-fill');
+        rb.className = 'risk-bar-fill ' + color.fill;
+        setTimeout(() => { rb.style.width = pct + '%'; }, 100);
+
+        setSignal('ela', data.signals.ela);
+        setSignal('meta', data.signals.metadata);
+        setSignal('noise', data.signals.compression);
+        setSignal('struct', data.signals.structure);
+
+        if (data.visual_proof) {
+          document.getElementById('heatmap-image').src = data.visual_proof;
+        }
+
+        document.getElementById('hash-value').textContent = data.document_hash || 'N/A';
+
+        const list = document.getElementById('findings-list');
+        (data.explanations || []).forEach(exp => {
+          const div = document.createElement('div');
+          div.className = 'finding-item';
+          div.innerHTML = `<span class="finding-arrow">→</span><span>${exp}</span>`;
+          list.appendChild(div);
+        });
+
+      } catch (err) {
+        console.error(err);
+        document.getElementById('verdict-text').textContent = 'API Error';
+        document.getElementById('findings-list').innerHTML =
+          `<div class="finding-item"><span class="finding-arrow c-red">!</span><span style="color:var(--red)">${err.message}</span></div>`;
+      }
+    }
+  </script>
 </body>
+
 </html>
